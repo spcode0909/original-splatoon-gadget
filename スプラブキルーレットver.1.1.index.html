@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>スプラトゥーン ブキルーレット（カテゴリ機能付き）</title>
+    <style>
+        :root {
+            --main-bg: #16161a;
+            --panel-bg: #242529;
+            --accent-color: #eaff12; /* スプラ風イエロー */
+            --text-color: #ffffff;
+            --text-muted: #a0a0a2;
+            --border-color: #3a3b3f;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--main-bg);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            display: flex;
+            gap: 20px;
+        }
+
+        /* 画面左側のコンテナ */
+        .left-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            height: 100%;
+        }
+
+        /* ルーレット欄（左上） */
+        .roulette-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--border-color);
+            position: relative;
+        }
+
+        .roulette-display-wrapper {
+            width: 80%;
+            height: 80px;
+            border: 3px solid var(--accent-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+            box-shadow: 0 0 15px rgba(234, 255, 18, 0.2);
+        }
+
+        .roulette-display {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            white-space: nowrap;
+            color: var(--accent-color);
+        }
+
+        .start-btn {
+            background-color: var(--accent-color);
+            color: #000;
+            border: none;
+            padding: 12px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: transform 0.1s, opacity 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
+        .start-btn:hover {
+            opacity: 0.9;
+        }
+
+        .start-btn:active {
+            transform: scale(0.95);
+        }
+
+        .start-btn:disabled {
+            background-color: var(--text-muted);
+            cursor: not-allowed;
+        }
+
+        /* 履歴欄（左下） */
+        .history-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ブキ一覧欄（右側） */
+        .list-panel {
+            width: 380px;
+            background-color: var(--panel-bg);
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+        }
+
+        h2 {
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .scrollable-area {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        /* スクロールバーのカスタム */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        /* --- カテゴリ（アコーディオン）スタイル --- */
+        .category-group {
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .category-header {
+            display: flex;
+            align-items: center;
+            background-color: rgba(255, 255, 255, 0.05);
+            padding: 10px;
+            user-select: none;
+        }
+
+        .category-header:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+        }
+
+        .category-title-wrapper {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            padding-right: 5px;
+        }
+
+        .category-title {
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        /* アコーディオンの開閉矢印 */
+        .category-title::after {
+            content: ' ▶';
+            font-size: 10px;
+            color: var(--text-muted);
+            display: inline-block;
+            transition: transform 0.2s;
+            margin-left: 8px;
+        }
+        .category-group.open .category-title::after {
+            transform: rotate(90deg);
+        }
+
+        .category-content {
+            display: none;
+            padding: 8px;
+            background-color: rgba(0, 0, 0, 0.15);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .category-group.open .category-content {
+            display: block;
+        }
+
+        /* ブキアイテムのスタイル */
+        .weapon-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            margin-bottom: 4px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 6px;
+            transition: background 0.2s;
+            font-size: 14px;
+        }
+
+        .weapon-item:hover {
+            background: rgba(255,255,255,0.06);
+        }
+
+        .weapon-item.excluded, .category-group.all-excluded .category-header {
+            color: var(--text-muted);
+        }
+        
+        .weapon-item.excluded .weapon-label {
+            text-decoration: line-through;
+        }
+
+        input[type="checkbox"] {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-color);
+        }
+
+        .weapon-label {
+            cursor: pointer;
+            flex: 1;
+            user-select: none;
+        }
+
+        .counter {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: normal;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 左側エリア（ルーレットと履歴） -->
+    <div class="left-container">
+        <!-- ルーレット欄（左上） -->
+        <div class="roulette-panel">
+            <h2>ブキルーレット</h2>
+            <div class="roulette-display-wrapper">
+                <div class="roulette-display" id="rouletteDisplay">READY?</div>
+            </div>
+            <button class="start-btn" id="startBtn">START</button>
+        </div>
+
+        <!-- 履歴欄（左下） -->
+        <div class="history-panel">
+            <h2>抽選履歴 <span class="counter" id="historyCounter">件数: 0</span></h2>
+            <div class="scrollable-area" id="historyList">
+                <!-- ここに履歴が追加されます -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 右側エリア（全ブキ一覧・カテゴリ分け） -->
+    <div class="list-panel">
+        <h2>ブキ一覧 <span class="counter" id="listCounter">残り: 0/0</span></h2>
+        <div class="scrollable-area" id="categoryContainer">
+            <!-- ここに各カテゴリとブキが自動生成されます -->
+        </div>
+    </div>
+
+    <script>
+        // カテゴリ定義と所属するブキの一覧
+        const categoryDefinitions = [
+            {
+                name: "シューター",
+                weapons: ["わかばシューター", "スプラシューター", "N-ZAP85", "もみじシューター", "スペースシューター", "ボールドマーカー", "プライムシューター", "スプラシューターコラボ", ".52ガロン", "N-ZAP89", "スペースシューターコラボ", "スプラシューター煌", "L3リールガン", "ボールドマーカーネオ", ".52ガロンデコ", "ジェットスイーパー", "シャープマーカー", ".96ガロン", "プロモデラーMG", "プロモデラーRG", "プロモデラー彩", "ボトルガイザー", "L3リールガンD", "L3リールガン箔", "ジェットスイーパーカスタム", "プライムシューターコラボ", "シャープマーカーネオ", "ジェットスイーパーCOBR", "シャープマーカーGECK", ".96ガロンデコ", "プライムシューターFRZN", ".96ガロン爪", "H3リールガン", "ボトルガイザーフォイル", "H3リールガンD", "H3リールガンSNAK"]
+            },
+            {
+                name: "ローラー",
+                weapons: ["スプラローラー", "カーボンローラー", "スプラローラーコラボ", "ダイナモローラー", "ワイドローラー", "ダイナモローラーテスラ", "ワイドローラーコラボ", "ダイナモローラー冥", "ヴァリアブルローラー", "ワイドローラー惑", "カーボンローラーデコ", "カーボンローラーANGL", "ヴァリアブルローラーフォイル"]
+            },
+            {
+                name: "チャージャー",
+                weapons: ["スプラチャージャー", "スクイックリンα", "スプラチャージャーコラボ", "スプラスコープ", "スプラチャージャーFRST", "スクイックリンβ", "R-PEN/5H", "スプラスコープコラボ", "スプラスコープFRST", "リッター4K", "R-PEN/5B", "リッター4Kカスタム", "14式竹筒銃・甲", "ソイチューバ―", "14式竹筒銃・乙", "4Kスコープ", "ソイチューバーカスタム", "4Kスコープカスタム"]
+            },
+            {
+                name: "スロッシャー",
+                weapons: ["バケットスロッシャー", "ヒッセン", "バケットスロッシャーデコ", "スクリュースロッシャー", "モップリン", "ヒッセンヒュー", "モップリンD", "オーバーフロッシャー", "ヒッセンASH", "モップリン角", "スクリュースロッシャーネオ", "オーバーフロッシャーデコ", "エクスプロッシャー", "エクスプロッシャーカスタム"]
+            },
+            {
+                name: "スピナー",
+                weapons: ["バレルスピナー", "スプラスピナー", "イグザミナー", "バレルスピナーデコ", "イグザミナーヒュー", "ハイドラント", "ハイドラントカスタム", "スプラスピナーコラボ", "ハイドラント圧", "スプラスピナーPYTN", "ノーチラス47", "ノーチラス79", "クーゲルシュライバー", "クーゲルシュライバーヒュー"]
+            },
+            {
+                name: "マニューバー",
+                weapons: ["スプラマニューバー", "デュアルスイーパー", "スプラマニューバーコラボ", "スパッタリー", "スプラマニューバー耀", "デュアルスイーパーカスタム", "クアッドホッパーブラック", "デュアルスイーパー蹄", "ケルビン525", "ガエンFF", "クアッドホッパーホワイト", "スパッタリーヒュー", "ケルビン525デコ", "ガエンFFカスタム", "スパッタリーOWL"]
+            },
+            {
+                name: "シェルター",
+                weapons: ["パラシェルター", "24式張替傘・甲", "キャンピングシェルター", "スパイガジェット", "パラシェルターソレーラ", "24式張替傘・乙", "キャンピングシェルターソレーラ", "スパイガジェットソレーラ", "キャンピングシェルターCREM", "スパイガジェット繚"]
+            },
+            {
+                name: "ブラスター",
+                weapons: ["ホットブラスター", "ラピッドブラスター", "ホットブラスターカスタム", "ホットブラスター艶", "ラピッドブラスターデコ", "ロングブラスター", "ノヴァブラスター", "ロングブラスターカスタム", "S-BLAST92", "クラッシュブラスター", "ノヴァブラスターネオ", "クラッシュブラスターネオ", "Rブラスターエリート", "S-BLAST91", "Rブラスターエリートデコ", "RブラスターエリートWNTR"]
+            },
+            {
+                name: "フデ",
+                weapons: ["ホクサイ", "パブロ", "ホクサイヒュー", "ホクサイ彗", "フィンセント", "パブロヒュー", "フィンセントヒュー", "フィンセントBRNZ"]
+            },
+            {
+                name: "ストリンガー",
+                weapons: ["トライストリンガー", "LACT-450", "トライストリンガーコラボ", "LACT-450デコ", "トライストリンガー燈", "LACT-450MILK", "フルイドⅤ", "フルイドⅤカスタム"]
+            },
+            {
+                name: "ワイパー",
+                weapons: ["ドライブワイパー", "ドライブワイパーデコ", "ドライブワイパーRUST", "ジムワイパー", "ジムワイパーヒュー", "デンタルワイパーミント", "ジムワイパー封", "デンタルワイパースミ"]
+            }
+        ];
+
+        // 各ブキの状態を一元管理するオブジェクト
+        let weapons = [];
+        let globalIdCounter = 0;
+
+        // カテゴリ構造を保持する配列
+        let categories = [];
+
+        // データの初期化構築
+        categoryDefinitions.forEach((cDef, cIdx) => {
+            let cWeapons = [];
+            cDef.weapons.forEach(wName => {
+                const wObj = {
+                    id: globalIdCounter++,
+                    name: wName,
+                    excluded: false,
+                    categoryId: cIdx
+                };
+                weapons.push(wObj);
+                cWeapons.push(wObj);
+            });
+
+            categories.push({
+                id: cIdx,
+                name: cDef.name,
+                weapons: cWeapons
+            });
+        });
+
+        // DOMオブジェクトの取得
+        const rouletteDisplay = document.getElementById('rouletteDisplay');
+        const startBtn = document.getElementById('startBtn');
+        const categoryContainer = document.getElementById('categoryContainer');
+        const historyList = document.getElementById('historyList');
+        const listCounter = document.getElementById('listCounter');
+        const historyCounter = document.getElementById('historyCounter');
+
+        let isRunning = false;
+        let historyCount = 0;
+
+        // 右側のカテゴリ＆ブキ一覧を画面上に生成
+        function initCategoryListDOM() {
+            categoryContainer.innerHTML = '';
+
+            categories.forEach(cat => {
+                // カテゴリ外枠
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'category-group'; // 初期状態は閉じている（openクラスなし）
+                groupDiv.setAttribute('data-cat-id', cat.id);
+
+                // カテゴリヘッダー
+                const header = document.createElement('div');
+                header.className = 'category-header';
+
+                // カテゴリ用チェックボックス（一括除外用）
+                const catCheckbox = document.createElement('input');
+                catCheckbox.type = 'checkbox';
+                catCheckbox.id = `cat-check-${cat.id}`;
+                catCheckbox.addEventListener('change', handleCategoryCheckboxChange);
+
+                // タイトルと個数表示部分（クリックで開閉）
+                const titleWrapper = document.createElement('div');
+                titleWrapper.className = 'category-title-wrapper';
+                titleWrapper.addEventListener('click', (e) => {
+                    groupDiv.classList.toggle('open');
+                });
+
+                const titleSpan = document.createElement('span');
+                titleSpan.className = 'category-title';
+                titleSpan.textContent = cat.name;
+
+                const countSpan = document.createElement('span');
+                countSpan.className = 'counter cat-count';
+                
+                titleWrapper.appendChild(titleSpan);
+                titleWrapper.appendChild(countSpan);
+                header.appendChild(catCheckbox);
+                header.appendChild(titleWrapper);
+
+                // カテゴリ内部（ブキ一覧）
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'category-content';
+
+                cat.weapons.forEach(weapon => {
+                    const wItem = createWeaponDOM(weapon, `list-${weapon.id}`, handleListCheckboxChange);
+                    contentDiv.appendChild(wItem);
+                });
+
+                groupDiv.appendChild(header);
+                groupDiv.appendChild(contentDiv);
+                categoryContainer.appendChild(groupDiv);
+            });
+
+            updateCounters();
+        }
+
+        // ブキのHTML要素（チェックボックス付き）を生成する共通関数
+        function createWeaponDOM(weapon, uniqueId, changeHandler) {
+            const div = document.createElement('div');
+            div.className = `weapon-item ${weapon.excluded ? 'excluded' : ''}`;
+            div.setAttribute('data-id', weapon.id);
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = uniqueId;
+            checkbox.checked = weapon.excluded;
+            checkbox.addEventListener('change', changeHandler);
+
+            const label = document.createElement('label');
+            label.className = 'weapon-label';
+            label.htmlFor = uniqueId;
+            label.textContent = weapon.name;
+
+            div.appendChild(checkbox);
+            div.appendChild(label);
+            return div;
+        }
+
+        // 全体のカウンターおよび各カテゴリ内の残りカウント数表示を更新
+        function updateCounters() {
+            const totalActive = weapons.filter(w => !w.excluded).length;
+            listCounter.textContent = `残り: ${totalActive}/${weapons.length}`;
+            historyCounter.textContent = `件数: ${historyCount}`;
+
+            // 各カテゴリのヘッダー情報を更新
+            categories.forEach(cat => {
+                const groupDiv = categoryContainer.querySelector(`[data-cat-id="${cat.id}"]`);
+                if (!groupDiv) return;
+
+                const catWeapons = cat.weapons;
+                const activeCount = catWeapons.filter(w => !w.excluded).length;
+                
+                // カテゴリ内のカウント文字更新
+                const countSpan = groupDiv.querySelector('.cat-count');
+                countSpan.textContent = `(${activeCount}/${catWeapons.length})`;
+
+                // カテゴリチェックボックスの同期
+                const catCheckbox = groupDiv.querySelector('.category-header input[type="checkbox"]');
+                
+                if (activeCount === 0) {
+                    // 全て除外されている場合はチェックを入れる
+                    catCheckbox.checked = true;
+                    catCheckbox.indeterminate = false;
+                    groupDiv.classList.add('all-excluded');
+                } else if (activeCount === catWeapons.length) {
+                    // 全てルーレット内にある場合はチェックを外す
+                    catCheckbox.checked = false;
+                    catCheckbox.indeterminate = false;
+                    groupDiv.classList.remove('all-excluded');
+                } else {
+                    // 一部だけ除外されている場合は「中間の状態（マイナス表示）」にする
+                    catCheckbox.checked = false;
+                    catCheckbox.indeterminate = true;
+                    groupDiv.classList.remove('all-excluded');
+                }
+            });
+        }
+
+        // 右側一覧の「個別ブキ」のチェック変更イベント
+        function handleListCheckboxChange(e) {
+            const id = parseInt(e.target.closest('.weapon-item').getAttribute('data-id'));
+            toggleWeaponExclusion(id, e.target.checked);
+        }
+
+        // 履歴欄の「個別ブキ」のチェック変更イベント
+        function handleHistoryCheckboxChange(e) {
+            const id = parseInt(e.target.closest('.weapon-item').getAttribute('data-id'));
+            toggleWeaponExclusion(id, e.target.checked);
+        }
+
+        // 「カテゴリ単位」のチェック変更イベント（一括処理）
+        function handleCategoryCheckboxChange(e) {
+            const catId = parseInt(e.target.closest('.category-group').getAttribute('data-cat-id'));
+            const isChecked = e.target.checked; // true = 全除外、false = 全て戻す
+
+            const cat = categories.find(c => c.id === catId);
+            if (!cat) return;
+
+            // カテゴリ内のブキすべてを同一の状態に更新
+            cat.weapons.forEach(weapon => {
+                // 内部状態と各DOMを書き換える（大量処理のため個別関数をインライン化して高速化）
+                weapon.excluded = isChecked;
+
+                // 一覧側のブキDOM同期
+                const listUi = categoryContainer.querySelector(`.weapon-item[data-id="${weapon.id}"]`);
+                if (listUi) {
+                    listUi.classList.toggle('excluded', isChecked);
+                    listUi.querySelector('input').checked = isChecked;
+                }
+
+                // 履歴側のブキDOM同期（該当する全要素）
+                const historyUis = historyList.querySelectorAll(`.weapon-item[data-id="${weapon.id}"]`);
+                historyUis.forEach(ui => {
+                    ui.classList.toggle('excluded', isChecked);
+                    ui.querySelector('input').checked = isChecked;
+                });
+            });
+
+            updateCounters();
+        }
+
+        // 特定のブキの除外状態を切り替え、すべての表示を同期
+        function toggleWeaponExclusion(id, isExcluded) {
+            const weapon = weapons.find(w => w.id === id);
+            if (weapon) {
+                weapon.excluded = isExcluded;
+            }
+
+            // 右側一覧の該当ブキDOMを同期
+            const listItem = categoryContainer.querySelector(`.weapon-item[data-id="${id}"]`);
+            if (listItem) {
+                listItem.classList.toggle('excluded', isExcluded);
+                listItem.querySelector('input').checked = isExcluded;
+            }
+
+            // 履歴欄にある該当ブキDOMを同期
+            const historyItems = historyList.querySelectorAll(`.weapon-item[data-id="${id}"]`);
+            historyItems.forEach(item => {
+                item.classList.toggle('excluded', isExcluded);
+                item.querySelector('input').checked = isExcluded;
+            });
+
+            updateCounters();
+        }
+
+        // ルーレット開始処理
+        function startRoulette() {
+            if (isRunning) return;
+
+            // ルーレット対象（除外されていないブキ）を集める
+            const pool = weapons.filter(w => !w.excluded);
+
+            if (pool.length === 0) {
+                alert('ルーレットに入れるブキがありません！すべて除外されています。');
+                return;
+            }
+
+            isRunning = true;
+            startBtn.disabled = true;
+
+            let duration = 2000; // 回転時間（2秒）
+            let intervalTime = 50; // シャッフル速度（ミリ秒）
+            let elapsed = 0;
+            let timer;
+
+            timer = setInterval(() => {
+                const randomWeapon = pool[Math.floor(Math.random() * pool.length)];
+                rouletteDisplay.textContent = randomWeapon.name;
+                elapsed += intervalTime;
+
+                if (elapsed >= duration) {
+                    clearInterval(timer);
+                    
+                    // 最終当選ブキの決定
+                    const selectedWeapon = pool[Math.floor(Math.random() * pool.length)];
+                    rouletteDisplay.textContent = selectedWeapon.name;
+
+                    // 履歴への追加と自動除外
+                    addSelectedWeapon(selectedWeapon);
+
+                    isRunning = false;
+                    startBtn.disabled = false;
+                }
+            }, intervalTime);
+        }
+
+        // 当選ブキを履歴に追加し、ルーレットから自動除外する
+        function addSelectedWeapon(weapon) {
+            historyCount++;
+            
+            const historyId = `history-${weapon.id}-${historyCount}`;
+            const historyItem = createWeaponDOM(weapon, historyId, handleHistoryCheckboxChange);
+            
+            // 履歴は最新が上になるように挿入
+            if (historyList.firstChild) {
+                historyList.insertBefore(historyItem, historyList.firstChild);
+            } else {
+                historyList.appendChild(historyItem);
+            }
+
+            // 当選したブキを自動でルーレットから除外（チェックをつける）
+            toggleWeaponExclusion(weapon.id, true);
+        }
+
+        // ボタンのクリックイベント登録
+        startBtn.addEventListener('click', startRoulette);
+
+        // 初期実行：カテゴリリストの構築
+        initCategoryListDOM();
+    </script>
+</body>
+</html>
